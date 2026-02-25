@@ -3,761 +3,433 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Farid Chouchane — Carte Mentale Parcours</title>
-<link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@400;500;700;800&family=Instrument+Mono:wght@400;500&display=swap" rel="stylesheet">
+<title>Farid Chouchane — Carte Mentale</title>
+<link href="https://fonts.googleapis.com/css2?family=Clash+Display:wght@400;500;600;700&family=Bricolage+Grotesque:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-
+* { margin:0; padding:0; box-sizing:border-box; }
 body {
-  background: #f0ede8;
-  font-family: 'Cabinet Grotesk', sans-serif;
+  background: #080c14;
+  font-family: 'Bricolage Grotesque', sans-serif;
   overflow: hidden;
-  width: 100vw;
-  height: 100vh;
+  width: 100vw; height: 100vh;
   cursor: grab;
   user-select: none;
 }
 body.dragging { cursor: grabbing; }
+#canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 
-#canvas {
-  position: absolute;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-}
-
-/* Toolbar */
 #toolbar {
-  position: fixed;
-  bottom: 28px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #1a1a1a;
-  border-radius: 50px;
-  padding: 10px 20px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
+  position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+  background: rgba(255,255,255,0.05);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 60px; padding: 10px 22px;
+  display: flex; align-items: center; gap: 10px;
   z-index: 100;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08);
 }
-
 #toolbar button {
-  background: rgba(255,255,255,0.1);
-  border: none;
-  color: #fff;
-  font-family: 'Instrument Mono', monospace;
-  font-size: 12px;
-  padding: 7px 16px;
-  border-radius: 30px;
-  cursor: pointer;
-  transition: background 0.2s;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.75);
+  font-family: 'JetBrains Mono', monospace; font-size: 12px;
+  padding: 6px 16px; border-radius: 30px; cursor: pointer; transition: all 0.2s;
 }
-#toolbar button:hover { background: rgba(255,255,255,0.2); }
+#toolbar button:hover { background: rgba(255,255,255,0.14); color: #fff; }
+#toolbar .sep { width: 1px; height: 18px; background: rgba(255,255,255,0.1); }
+#zoom-level { color: rgba(255,255,255,0.28); font-family: 'JetBrains Mono', monospace; font-size: 11px; min-width: 44px; text-align: center; }
 
-#toolbar .sep {
-  width: 1px;
-  height: 20px;
-  background: rgba(255,255,255,0.15);
-}
-
-#zoom-level {
-  color: rgba(255,255,255,0.4);
-  font-family: 'Instrument Mono', monospace;
-  font-size: 11px;
-  min-width: 42px;
-  text-align: center;
-}
-
-/* Tooltip */
 #tooltip {
   position: fixed;
-  background: #1a1a1a;
-  color: #fff;
-  font-size: 12px;
-  font-family: 'Instrument Mono', monospace;
-  padding: 10px 16px;
-  border-radius: 10px;
-  pointer-events: none;
-  z-index: 200;
-  max-width: 260px;
-  line-height: 1.6;
-  opacity: 0;
-  transition: opacity 0.2s;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  background: rgba(8,12,20,0.96); backdrop-filter: blur(24px);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #e2e8f0; font-size: 12px;
+  padding: 16px 20px; border-radius: 16px;
+  pointer-events: none; z-index: 200; max-width: 280px;
+  line-height: 1.7; opacity: 0; transition: opacity 0.15s;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.7);
 }
 #tooltip.show { opacity: 1; }
-#tooltip .tip-title { font-family: 'Cabinet Grotesk', sans-serif; font-weight: 700; font-size: 14px; margin-bottom: 5px; }
-#tooltip .tip-date { color: #888; font-size: 10px; margin-bottom: 6px; }
-#tooltip .tip-tag {
-  display: inline-block;
-  font-size: 10px;
-  padding: 2px 8px;
-  border-radius: 20px;
-  margin: 2px;
-}
+.tip-title { font-family: 'Clash Display', sans-serif; font-weight: 600; font-size: 15px; color: #fff; margin-bottom: 4px; }
+.tip-date { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: rgba(255,255,255,0.3); margin-bottom: 10px; letter-spacing: 0.5px; }
+.tip-line { color: rgba(255,255,255,0.5); font-size: 12px; display: flex; align-items: center; gap: 8px; }
+.tip-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
 
-/* Legend */
 #legend {
-  position: fixed;
-  top: 24px;
-  right: 24px;
-  background: rgba(255,255,255,0.85);
-  backdrop-filter: blur(10px);
-  border-radius: 12px;
-  padding: 14px 18px;
-  font-size: 11px;
+  position: fixed; top: 24px; right: 24px;
+  background: rgba(255,255,255,0.03);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 14px; padding: 16px 20px;
   z-index: 100;
-  border: 1px solid rgba(0,0,0,0.08);
 }
-#legend h3 { font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: #999; margin-bottom: 10px; }
-.legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; font-size: 12px; color: #333; }
-.legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+#legend h3 { font-family: 'JetBrains Mono', monospace; font-size: 9px; text-transform: uppercase; letter-spacing: 3px; color: rgba(255,255,255,0.22); margin-bottom: 12px; }
+.legend-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-size: 11px; color: rgba(255,255,255,0.45); font-family: 'JetBrains Mono', monospace; }
+.legend-blob { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+#hdr { position: fixed; top: 24px; left: 24px; z-index: 100; }
+#hdr h1 { font-family: 'Clash Display', sans-serif; font-size: 19px; font-weight: 700; color: #fff; letter-spacing: -0.3px; }
+#hdr p { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: rgba(255,255,255,0.28); letter-spacing: 2px; text-transform: uppercase; margin-top: 3px; }
 </style>
 </head>
 <body>
-
 <canvas id="canvas"></canvas>
 
+<div id="hdr">
+  <h1>Farid Chouchane</h1>
+  <p>Carte de parcours · Hover pour détails</p>
+</div>
+
 <div id="tooltip">
-  <div class="tip-title" id="tip-title"></div>
-  <div class="tip-date" id="tip-date"></div>
-  <div id="tip-body"></div>
+  <div class="tip-title" id="tt"></div>
+  <div class="tip-date" id="td"></div>
+  <div id="tb"></div>
 </div>
 
 <div id="legend">
   <h3>Légende</h3>
-  <div class="legend-item"><div class="legend-dot" style="background:#e85d26"></div> Logistique / Supply Chain</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#7c3aed"></div> Transition / Pivot</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#0ea5e9"></div> Data Engineering</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#10b981"></div> Formation</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div> Compétences</div>
+  <div class="legend-row"><div class="legend-blob" style="background:#f97316;box-shadow:0 0 8px #f97316aa"></div>Logistique</div>
+  <div class="legend-row"><div class="legend-blob" style="background:#a855f7;box-shadow:0 0 8px #a855f7aa"></div>Transition</div>
+  <div class="legend-row"><div class="legend-blob" style="background:#38bdf8;box-shadow:0 0 8px #38bdf8aa"></div>Data Engineering</div>
+  <div class="legend-row"><div class="legend-blob" style="background:#34d399;box-shadow:0 0 8px #34d399aa"></div>Formation</div>
+  <div class="legend-row"><div class="legend-blob" style="background:#fbbf24;box-shadow:0 0 8px #fbbf24aa"></div>Compétences</div>
 </div>
 
 <div id="toolbar">
-  <button onclick="zoom(1.2)">＋</button>
-  <button onclick="zoom(0.8)">－</button>
+  <button onclick="zoom(1.15)">＋</button>
+  <button onclick="zoom(0.87)">－</button>
   <div class="sep"></div>
-  <span id="zoom-level">100%</span>
+  <span id="zoom-level">82%</span>
   <div class="sep"></div>
-  <button onclick="resetView()">Recentrer</button>
+  <button onclick="resetView()">⌖ Centrer</button>
 </div>
 
 <script>
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+function resize(){ canvas.width=innerWidth; canvas.height=innerHeight; }
+resize(); window.addEventListener('resize', resize);
 
-let scale = 0.82;
-let offsetX = 0, offsetY = 0;
-let isDragging = false;
-let lastX, lastY;
-let hoveredNode = null;
-let animFrame = 0;
+let sc=0.82, ox=0, oy=0, drag=false, lx=0, ly=0, hov=null, tick=0;
 
-// ─── DATA ───────────────────────────────────────────────────────────────────
+const PAL={
+  root:      {f:'#ffffff',g:'255,255,255',t:'#080c14'},
+  branch:    {f:'#141e30',g:'20,30,48',   t:'rgba(255,255,255,0.8)'},
+  logistics: {f:'#f97316',g:'249,115,22', t:'#fff'},
+  pivot:     {f:'#a855f7',g:'168,85,247', t:'#fff'},
+  data:      {f:'#38bdf8',g:'56,189,248', t:'#0a0e1a'},
+  formation: {f:'#34d399',g:'52,211,153', t:'#0a0e1a'},
+  skill:     {f:'#fbbf24',g:'251,191,36', t:'#0a0e1a'},
+  target:    {f:'#38bdf8',g:'56,189,248', t:'#0a0e1a'},
+};
 
-const CENTER = { x: 0, y: 0 };
+const N=[
+  {id:'root',     x:0,    y:0,    r:80,  tp:'root',      lb:'FARID\nCHOUCHANE', fs:15, fw:'700',
+   tip:{t:'Farid Chouchane',d:'Mérignac (33) · chouchanefarid@gmail.com',b:['Data Engineer Cloud','Profil hybride Supply Chain × Data','+10 ans d\'expérience']}},
 
-const nodes = [
-  // ROOT
-  {
-    id: 'root',
-    label: 'FARID\nCHOUCHANE',
-    x: 0, y: 0,
-    r: 72,
-    color: '#1a1a1a',
-    textColor: '#fff',
-    fontSize: 15,
-    fontWeight: '800',
-    type: 'root',
-    tooltip: { title: 'Farid Chouchane', date: 'Mérignac (33)', body: 'Data Engineer Cloud\nProfil hybride Supply Chain × Data\n+10 ans d\'expérience' }
-  },
+  {id:'xp',       x:-370, y:-165, r:52,  tp:'branch',    lb:'Expé-\nriences',  fs:12, fw:'600'},
+  {id:'skills',   x:370,  y:-165, r:52,  tp:'branch',    lb:'Compé-\ntences',  fs:12, fw:'600'},
+  {id:'formation',x:370,  y:165,  r:52,  tp:'branch',    lb:'For-\nmations',   fs:12, fw:'600'},
+  {id:'target',   x:-370, y:165,  r:52,  tp:'branch',    lb:'Poste\nvisé',     fs:12, fw:'600'},
 
-  // BRANCHES PRINCIPALES
-  {
-    id: 'xp',
-    label: 'Expériences',
-    x: -340, y: -180,
-    r: 46,
-    color: '#1a1a1a',
-    textColor: '#fff',
-    fontSize: 12,
-    fontWeight: '700',
-    type: 'branch'
-  },
-  {
-    id: 'skills',
-    label: 'Compétences',
-    x: 340, y: -180,
-    r: 46,
-    color: '#1a1a1a',
-    textColor: '#fff',
-    fontSize: 12,
-    fontWeight: '700',
-    type: 'branch'
-  },
-  {
-    id: 'formation',
-    label: 'Formations',
-    x: 340, y: 180,
-    r: 46,
-    color: '#1a1a1a',
-    textColor: '#fff',
-    fontSize: 12,
-    fontWeight: '700',
-    type: 'branch'
-  },
-  {
-    id: 'target',
-    label: '🎯 Poste visé',
-    x: -340, y: 180,
-    r: 46,
-    color: '#1a1a1a',
-    textColor: '#fff',
-    fontSize: 12,
-    fontWeight: '700',
-    type: 'branch'
-  },
+  {id:'percall',  x:-630, y:-400, r:60,  tp:'data',      lb:'Percall APS\n2023 →',       fs:11, fw:'700',
+   tip:{t:'Consultant PLM Data Migration',d:'09/2023 → En cours · Le Haillan (33)',b:['Pipelines ETL end-to-end','Migration données grande volumétrie','Nettoyage · mapping · qualité données','Coordination IT & métiers — Agile']}},
+  {id:'projet',   x:-760, y:-210, r:48,  tp:'data',      lb:'Pipeline\nData perso',      fs:10, fw:'600',
+   tip:{t:'Projet Data Personnel',d:'Architecture end-to-end',b:['API REST → Cloud Storage → BigQuery','Python · Pandas · SQL · Looker Studio']}},
+  {id:'sivu',     x:-590, y:-130, r:54,  tp:'pivot',     lb:'SIVU\n2019–2021',            fs:11, fw:'700',
+   tip:{t:'Resp. Logistique Adjoint — Pivot Data',d:'02/2019 → 04/2021 · Bordeaux (33)',b:['Réorganisation logistique (45 pers.)','Collecte & analyse de données','Reporting COPIL bihebdomadaire','Management & pilotage de projet']}},
+  {id:'denjean',  x:-375, y:-400, r:50,  tp:'logistics', lb:'Denjean\n2016–2018',         fs:11, fw:'600',
+   tip:{t:'Chef de Projet Logistique',d:'09/2016 → 09/2018 · Montbartier (82)',b:['Management équipe 30 pers.','Création outil de pilotage activité','Amélioration continue']}},
+  {id:'pharma',   x:-175, y:-430, r:46,  tp:'logistics', lb:'Eurotrans-\npharma 2015',    fs:10, fw:'600',
+   tip:{t:'Contrôleur de Gestion Logistique',d:'09/2015 → 03/2016 · Clermont-Ferrand',b:['Analyse financière','KPI pour 14 agences régionales','Création tableaux de bord']}},
+  {id:'touton',   x:-180, y:-305, r:44,  tp:'logistics', lb:'Touton\n2013–2014',          fs:10, fw:'600',
+   tip:{t:'Assistant Logistique',d:'06/2013 → 09/2014 · Bordeaux (33)',b:['Gestion production','Expéditions internationales','Projet entrepôt 300k€']}},
 
-  // ── EXPÉRIENCES ──────────────────────────────────────────────────
+  {id:'sk-py',    x:545,  y:-400, r:44,  tp:'skill',     lb:'Python\nPandas',  fs:11, fw:'700'},
+  {id:'sk-sql',   x:690,  y:-295, r:40,  tp:'skill',     lb:'SQL',             fs:14, fw:'700'},
+  {id:'sk-gcp',   x:710,  y:-150, r:46,  tp:'skill',     lb:'GCP\nBigQuery',   fs:11, fw:'700'},
+  {id:'sk-etl',   x:570,  y:-75,  r:42,  tp:'skill',     lb:'ETL\nTalend',     fs:11, fw:'700'},
+  {id:'sk-bi',    x:455,  y:-300, r:42,  tp:'skill',     lb:'Power BI\nLooker',fs:10, fw:'600'},
+  {id:'sk-tab',   x:635,  y:-460, r:40,  tp:'skill',     lb:'Tableau',         fs:12, fw:'700'},
 
-  // Data
-  {
-    id: 'percall',
-    label: 'Percall APS\n2023 →',
-    x: -580, y: -400,
-    r: 52,
-    color: '#0ea5e9',
-    textColor: '#fff',
-    fontSize: 11,
-    fontWeight: '700',
-    type: 'data',
-    tooltip: { title: 'Consultant PLM Data Migration', date: '09/2023 → En cours · Le Haillan (33)', body: '• Pipelines ETL\n• Migration données grande volumétrie\n• Nettoyage & mapping\n• Coordination IT / métiers (Agile)' }
-  },
-  {
-    id: 'projet',
-    label: 'Projet data\npersonnel',
-    x: -700, y: -240,
-    r: 44,
-    color: '#0ea5e9',
-    textColor: '#fff',
-    fontSize: 10,
-    fontWeight: '600',
-    type: 'data',
-    tooltip: { title: 'Pipeline end-to-end', date: 'Projet perso', body: 'API REST → Cloud Storage → BigQuery\nPython · Pandas · SQL · Looker Studio' }
-  },
+  {id:'fo-da',    x:575,  y:110,  r:48,  tp:'formation', lb:'Data Analyst\n2023',   fs:11, fw:'700',
+   tip:{t:'Data Analyst',d:'2023 · Bac+4 · RNCP niv.6',b:['Collecte, nettoyage, analyse exploratoire','Méthodes statistiques · Distanciel']}},
+  {id:'fo-mcl',   x:660,  y:270,  r:48,  tp:'formation', lb:'MCL Bac+5\n2018',      fs:11, fw:'700',
+   tip:{t:'Manager Chaîne Logistique',d:'2018 · Bac+5 RNCP niv.7 · CNAM Toulouse',b:['Supply Chain · Lean Six Sigma','Management · MRP II · Gestion projets']}},
+  {id:'fo-cpim',  x:480,  y:395,  r:42,  tp:'formation', lb:'CPIM\nAPICS 2018',     fs:10, fw:'600',
+   tip:{t:'CPIM Part 1',d:'2018 · APICS Toulouse',b:['Certification internationale','Basics of Supply Chain Management']}},
+  {id:'fo-rel',   x:300,  y:425,  r:40,  tp:'formation', lb:'REL Bac+3\n2014',      fs:10, fw:'600',
+   tip:{t:'Responsable en Logistique',d:'2014 · Bac+3 RNCP niv.6 · Bordeaux',b:['Management · Planification','Ordonnancement · Approvisionnements']}},
+  {id:'fo-bts',   x:425,  y:255,  r:38,  tp:'formation', lb:'BTS CGO\n2012',        fs:10, fw:'600',
+   tip:{t:'BTS Comptabilité & Gestion',d:'2012 · Bordeaux (33)',b:['Comptabilité · Gestion des organisations']}},
 
-  // Pivot
-  {
-    id: 'sivu',
-    label: 'SIVU\n2019–2021',
-    x: -530, y: -150,
-    r: 48,
-    color: '#7c3aed',
-    textColor: '#fff',
-    fontSize: 11,
-    fontWeight: '700',
-    type: 'pivot',
-    tooltip: { title: 'Resp. Logistique Adjoint — Pivot Data', date: '02/2019 → 04/2021 · Bordeaux (33)', body: '• Gestion projet réorganisation (45 pers.)\n• Collecte & analyse de données\n• Reporting COPIL bihebdo\n• Management + pilotage' }
-  },
-
-  // Logistics
-  {
-    id: 'denjean',
-    label: 'Denjean\n2016–2018',
-    x: -340, y: -400,
-    r: 46,
-    color: '#e85d26',
-    textColor: '#fff',
-    fontSize: 11,
-    fontWeight: '600',
-    type: 'logistics',
-    tooltip: { title: 'Chef de Projet Logistique', date: '09/2016 → 09/2018 · Montbartier (82)', body: '• Management équipe 30 pers.\n• Création outil de pilotage\n• Amélioration continue' }
-  },
-  {
-    id: 'pharma',
-    label: 'Eurotrans-\npharma 2015',
-    x: -160, y: -430,
-    r: 44,
-    color: '#e85d26',
-    textColor: '#fff',
-    fontSize: 10,
-    fontWeight: '600',
-    type: 'logistics',
-    tooltip: { title: 'Contrôleur de Gestion Logistique', date: '09/2015 → 03/2016 · Clermont-Ferrand', body: '• Analyse financière\n• KPI pour 14 agences régionales\n• Tableaux de bord' }
-  },
-  {
-    id: 'touton',
-    label: 'Touton\n2013–2014',
-    x: -160, y: -300,
-    r: 42,
-    color: '#e85d26',
-    textColor: '#fff',
-    fontSize: 10,
-    fontWeight: '600',
-    type: 'logistics',
-    tooltip: { title: 'Assistant Logistique', date: '06/2013 → 09/2014 · Bordeaux (33)', body: '• Gestion production\n• Expéditions internationales\n• Projet entrepôt 300k€' }
-  },
-
-  // ── COMPÉTENCES ──────────────────────────────────────────────────
-
-  {
-    id: 'sk-python',
-    label: 'Python\nPandas',
-    x: 520, y: -380,
-    r: 40,
-    color: '#f59e0b',
-    textColor: '#fff',
-    fontSize: 11,
-    fontWeight: '700',
-    type: 'skill'
-  },
-  {
-    id: 'sk-sql',
-    label: 'SQL',
-    x: 660, y: -290,
-    r: 36,
-    color: '#f59e0b',
-    textColor: '#fff',
-    fontSize: 12,
-    fontWeight: '700',
-    type: 'skill'
-  },
-  {
-    id: 'sk-gcp',
-    label: 'GCP\nBigQuery',
-    x: 680, y: -160,
-    r: 42,
-    color: '#f59e0b',
-    textColor: '#fff',
-    fontSize: 11,
-    fontWeight: '700',
-    type: 'skill'
-  },
-  {
-    id: 'sk-etl',
-    label: 'ETL\nTalend',
-    x: 530, y: -90,
-    r: 38,
-    color: '#f59e0b',
-    textColor: '#fff',
-    fontSize: 11,
-    fontWeight: '700',
-    type: 'skill'
-  },
-  {
-    id: 'sk-bi',
-    label: 'Power BI\nLooker',
-    x: 440, y: -280,
-    r: 38,
-    color: '#f59e0b',
-    textColor: '#fff',
-    fontSize: 10,
-    fontWeight: '600',
-    type: 'skill'
-  },
-  {
-    id: 'sk-lean',
-    label: 'Tableau',
-    x: 610, y: -430,
-    r: 36,
-    color: '#f59e0b',
-    textColor: '#fff',
-    fontSize: 11,
-    fontWeight: '700',
-    type: 'skill'
-  },
-
-  // ── FORMATIONS ──────────────────────────────────────────────────
-
-  {
-    id: 'fo-da',
-    label: 'Data Analyst\n2023',
-    x: 560, y: 120,
-    r: 44,
-    color: '#10b981',
-    textColor: '#fff',
-    fontSize: 11,
-    fontWeight: '700',
-    type: 'formation',
-    tooltip: { title: 'Data Analyst', date: '2023 · Bac+4 RNCP niv.6', body: 'Collecte, nettoyage, analyse exploratoire\nMéthodes statistiques · Distanciel' }
-  },
-  {
-    id: 'fo-mcl',
-    label: 'MCL Bac+5\n2018',
-    x: 640, y: 270,
-    r: 44,
-    color: '#10b981',
-    textColor: '#fff',
-    fontSize: 11,
-    fontWeight: '700',
-    type: 'formation',
-    tooltip: { title: 'Manager de la Chaîne Logistique', date: '2018 · Bac+5 RNCP niv.7 · CNAM Toulouse', body: 'Supply Chain · Lean Six Sigma\nManagement · MRP II · Gestion de projets' }
-  },
-  {
-    id: 'fo-cpim',
-    label: 'CPIM\nAPics 2018',
-    x: 460, y: 380,
-    r: 38,
-    color: '#10b981',
-    textColor: '#fff',
-    fontSize: 10,
-    fontWeight: '600',
-    type: 'formation',
-    tooltip: { title: 'CPIM Part 1 — Supply Chain Basics', date: '2018 · APICS Toulouse', body: 'Certification internationale\nBasics of Supply Chain Management' }
-  },
-  {
-    id: 'fo-rel',
-    label: 'REL Bac+3\n2014',
-    x: 290, y: 420,
-    r: 38,
-    color: '#10b981',
-    textColor: '#fff',
-    fontSize: 10,
-    fontWeight: '600',
-    type: 'formation',
-    tooltip: { title: 'Responsable en Logistique', date: '2014 · Bac+3 RNCP niv.6 · Bordeaux', body: 'Management · Planification\nOrdonnancement · Approvisionnements' }
-  },
-  {
-    id: 'fo-bts',
-    label: 'BTS CGO\n2012',
-    x: 420, y: 250,
-    r: 34,
-    color: '#10b981',
-    textColor: '#fff',
-    fontSize: 10,
-    fontWeight: '600',
-    type: 'formation',
-    tooltip: { title: 'BTS Comptabilité & Gestion', date: '2012 · Bordeaux (33)', body: 'Comptabilité · Gestion des organisations' }
-  },
-
-  // ── CIBLE ──────────────────────────────────────────────────────
-
-  {
-    id: 'tgt-ae',
-    label: 'Analytics\nEngineer',
-    x: -540, y: 300,
-    r: 52,
-    color: '#0ea5e9',
-    textColor: '#fff',
-    fontSize: 12,
-    fontWeight: '800',
-    type: 'target',
-    tooltip: { title: '🎯 Analytics Engineer', date: 'Poste visé', body: 'Python · SQL · GCP\nETL · BI · Reporting\nProfil hybride Data × Métier' }
-  },
-  {
-    id: 'tgt-de',
-    label: 'Data\nEngineer',
-    x: -390, y: 390,
-    r: 48,
-    color: '#0ea5e9',
-    textColor: '#fff',
-    fontSize: 12,
-    fontWeight: '800',
-    type: 'target',
-    tooltip: { title: '🎯 Data Engineer', date: 'Poste visé', body: 'Pipelines · Migration · Cloud\nGCP · Python · SQL · ETL' }
-  },
+  {id:'tgt-ae',   x:-570, y:310,  r:62,  tp:'target',    lb:'Analytics\nEngineer',  fs:13, fw:'700',
+   tip:{t:'🎯 Analytics Engineer',d:'Poste visé prioritaire',b:['Python · SQL · GCP','ETL · BI · Reporting','Profil hybride Data × Métier']}},
+  {id:'tgt-de',   x:-405, y:415,  r:54,  tp:'target',    lb:'Data\nEngineer',       fs:12, fw:'700',
+   tip:{t:'🎯 Data Engineer',d:'Poste visé',b:['Pipelines · Migration · Cloud','GCP · Python · SQL · ETL']}},
 ];
 
-// ─── EDGES ──────────────────────────────────────────────────────────────────
+const NM={};
+N.forEach(n=>NM[n.id]=n);
 
-const edges = [
-  // root → branches
-  { from: 'root', to: 'xp' },
-  { from: 'root', to: 'skills' },
-  { from: 'root', to: 'formation' },
-  { from: 'root', to: 'target' },
-
-  // expériences
-  { from: 'xp', to: 'percall' },
-  { from: 'xp', to: 'sivu' },
-  { from: 'xp', to: 'denjean' },
-  { from: 'xp', to: 'pharma' },
-  { from: 'xp', to: 'touton' },
-  { from: 'xp', to: 'projet' },
-
-  // compétences
-  { from: 'skills', to: 'sk-python' },
-  { from: 'skills', to: 'sk-sql' },
-  { from: 'skills', to: 'sk-gcp' },
-  { from: 'skills', to: 'sk-etl' },
-  { from: 'skills', to: 'sk-bi' },
-  { from: 'skills', to: 'sk-lean' },
-
-  // formations
-  { from: 'formation', to: 'fo-da' },
-  { from: 'formation', to: 'fo-mcl' },
-  { from: 'formation', to: 'fo-cpim' },
-  { from: 'formation', to: 'fo-rel' },
-  { from: 'formation', to: 'fo-bts' },
-
-  // cible
-  { from: 'target', to: 'tgt-ae' },
-  { from: 'target', to: 'tgt-de' },
-
-  // liens croisés (transition narrative)
-  { from: 'sivu', to: 'percall', dashed: true, label: 'pivot data' },
-  { from: 'fo-da', to: 'percall', dashed: true },
-  { from: 'sk-gcp', to: 'tgt-ae', dashed: true },
+const E=[
+  {a:'root',b:'xp'},{a:'root',b:'skills'},{a:'root',b:'formation'},{a:'root',b:'target'},
+  {a:'xp',b:'percall'},{a:'xp',b:'sivu'},{a:'xp',b:'denjean'},{a:'xp',b:'pharma'},{a:'xp',b:'touton'},{a:'xp',b:'projet'},
+  {a:'skills',b:'sk-py'},{a:'skills',b:'sk-sql'},{a:'skills',b:'sk-gcp'},{a:'skills',b:'sk-etl'},{a:'skills',b:'sk-bi'},{a:'skills',b:'sk-tab'},
+  {a:'formation',b:'fo-da'},{a:'formation',b:'fo-mcl'},{a:'formation',b:'fo-cpim'},{a:'formation',b:'fo-rel'},{a:'formation',b:'fo-bts'},
+  {a:'target',b:'tgt-ae'},{a:'target',b:'tgt-de'},
+  {a:'sivu',b:'percall',dash:true,lbl:'pivot →'},
+  {a:'fo-da',b:'percall',dash:true},
+  {a:'sk-gcp',b:'tgt-ae',dash:true},
 ];
 
-// ─── LOOKUP ─────────────────────────────────────────────────────────────────
+function ts(wx,wy){return{x:wx*sc+ox+canvas.width/2, y:wy*sc+oy+canvas.height/2};}
+function fs2(sx,sy){return{x:(sx-canvas.width/2-ox)/sc, y:(sy-canvas.height/2-oy)/sc};}
+function pal(tp){return PAL[tp]||PAL.branch;}
 
-const nodeMap = {};
-nodes.forEach(n => nodeMap[n.id] = n);
+// Particles
+const PARTS=Array.from({length:55},()=>({
+  x:Math.random()*2400-1200, y:Math.random()*2400-1200,
+  r:Math.random()*1.4+0.2, spd:Math.random()*0.15+0.04, ph:Math.random()*Math.PI*2
+}));
 
-// ─── ANIMATION STATE ────────────────────────────────────────────────────────
+function hex2rgb(h){const n=parseInt(h.slice(1),16);return`${n>>16},${(n>>8)&255},${n&255}`;}
+function lighten(hex,a){const n=parseInt(hex.slice(1),16);return`rgb(${Math.min(255,(n>>16)+a)},${Math.min(255,((n>>8)&255)+a)},${Math.min(255,(n&255)+a)})`;}
 
-let progress = 0; // 0→1 for entrance animation
+function drawEdge(e){
+  const a=NM[e.a],b=NM[e.b]; if(!a||!b) return;
+  const sa=ts(a.x,a.y),sb=ts(b.x,b.y);
+  const pa=pal(a.tp),pb=pal(b.tp);
+  const mx=(sa.x+sb.x)/2+(sb.y-sa.y)*0.09;
+  const my=(sa.y+sb.y)/2-(sb.x-sa.x)*0.09;
 
-function getNode(id) { return nodeMap[id]; }
-
-// ─── DRAW ────────────────────────────────────────────────────────────────────
-
-function toScreen(wx, wy) {
-  return {
-    x: wx * scale + offsetX + canvas.width / 2,
-    y: wy * scale + offsetY + canvas.height / 2
-  };
-}
-
-function fromScreen(sx, sy) {
-  return {
-    x: (sx - canvas.width / 2 - offsetX) / scale,
-    y: (sy - canvas.height / 2 - offsetY) / scale
-  };
-}
-
-function drawEdge(e) {
-  const a = getNode(e.from), b = getNode(e.to);
-  if (!a || !b) return;
-  const sa = toScreen(a.x, a.y), sb = toScreen(b.x, b.y);
-
-  ctx.beginPath();
-  ctx.moveTo(sa.x, sa.y);
-
-  // Bezier curve
-  const cpx = (sa.x + sb.x) / 2;
-  const cpy = (sa.y + sb.y) / 2 - 20;
-  ctx.quadraticCurveTo(cpx, cpy, sb.x, sb.y);
-
-  if (e.dashed) {
-    ctx.setLineDash([5, 6]);
-    ctx.strokeStyle = 'rgba(0,0,0,0.18)';
-    ctx.lineWidth = 1.5;
+  const g=ctx.createLinearGradient(sa.x,sa.y,sb.x,sb.y);
+  if(e.dash){
+    g.addColorStop(0,`rgba(${pa.g},0.35)`);
+    g.addColorStop(1,`rgba(${pb.g},0.15)`);
   } else {
-    ctx.setLineDash([]);
-    ctx.strokeStyle = 'rgba(0,0,0,0.12)';
-    ctx.lineWidth = 2;
+    g.addColorStop(0,`rgba(${pa.g},0.55)`);
+    g.addColorStop(1,`rgba(${pb.g},0.3)`);
   }
+  ctx.beginPath();
+  ctx.moveTo(sa.x,sa.y);
+  ctx.quadraticCurveTo(mx,my,sb.x,sb.y);
+  ctx.setLineDash(e.dash?[5,8]:[]);
+  ctx.strokeStyle=g;
+  ctx.lineWidth=e.dash?1.2:2;
   ctx.stroke();
   ctx.setLineDash([]);
 
-  // Label on dashed edges
-  if (e.label) {
-    const mx = (sa.x + cpx + sb.x) / 3;
-    const my = (sa.y + cpy + sb.y) / 3;
-    ctx.font = `500 ${10 * scale}px "Instrument Mono"`;
-    ctx.fillStyle = 'rgba(0,0,0,0.35)';
-    ctx.textAlign = 'center';
-    ctx.fillText(e.label, mx, my);
+  // Traveling dot
+  if(!e.dash){
+    const idx=N.indexOf(a);
+    const t2=((tick*0.007+idx*0.37)%1);
+    const bx=(1-t2)*(1-t2)*sa.x+2*(1-t2)*t2*mx+t2*t2*sb.x;
+    const by=(1-t2)*(1-t2)*sa.y+2*(1-t2)*t2*my+t2*t2*sb.y;
+    ctx.beginPath();
+    ctx.arc(bx,by,2.8,0,Math.PI*2);
+    ctx.fillStyle=pa.f;
+    ctx.globalAlpha=0.65;
+    ctx.fill();
+    ctx.globalAlpha=1;
+  }
+
+  if(e.lbl){
+    ctx.font=`400 ${9*Math.min(sc,1)}px "JetBrains Mono"`;
+    ctx.fillStyle='rgba(255,255,255,0.28)';
+    ctx.textAlign='center';
+    ctx.fillText(e.lbl,(sa.x+mx+sb.x)/3,(sa.y+my+sb.y)/3-7);
   }
 }
 
-function drawNode(n, t) {
-  const s = toScreen(n.x, n.y);
-  const r = n.r * scale;
-  const isHovered = hoveredNode === n.id;
-  const pulseR = isHovered ? r + 5 * Math.sin(t * 0.05) : r;
+function drawNode(n){
+  const s=ts(n.x,n.y);
+  const r=n.r*sc;
+  const p=pal(n.tp);
+  const isH=hov===n.id;
+  const pulse=isH?Math.sin(tick*0.09)*5:0;
+  const rr=r+pulse;
 
-  // Shadow
   ctx.save();
-  ctx.shadowColor = isHovered ? n.color : 'rgba(0,0,0,0.15)';
-  ctx.shadowBlur = isHovered ? 24 : 10;
-  ctx.shadowOffsetY = isHovered ? 4 : 6;
 
-  // Circle
-  ctx.beginPath();
-  ctx.arc(s.x, s.y, pulseR, 0, Math.PI * 2);
-  ctx.fillStyle = n.color;
-  ctx.fill();
-
-  if (isHovered) {
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 2.5;
-    ctx.stroke();
+  // Outer halo
+  if(isH){
+    const h=ctx.createRadialGradient(s.x,s.y,rr*0.5,s.x,s.y,rr*2.2);
+    h.addColorStop(0,`rgba(${p.g},0.18)`);
+    h.addColorStop(1,`rgba(${p.g},0)`);
+    ctx.beginPath(); ctx.arc(s.x,s.y,rr*2.2,0,Math.PI*2);
+    ctx.fillStyle=h; ctx.fill();
   }
+
+  // Soft ambient glow
+  const ag=ctx.createRadialGradient(s.x,s.y,rr*0.2,s.x,s.y,rr*1.6);
+  ag.addColorStop(0,`rgba(${p.g},${isH?0.3:0.12})`);
+  ag.addColorStop(1,`rgba(${p.g},0)`);
+  ctx.beginPath(); ctx.arc(s.x,s.y,rr*1.6,0,Math.PI*2);
+  ctx.fillStyle=ag; ctx.fill();
+
+  // Main fill
+  let fg;
+  if(n.tp==='root'){
+    fg=ctx.createRadialGradient(s.x-rr*0.3,s.y-rr*0.3,rr*0.05,s.x,s.y,rr);
+    fg.addColorStop(0,'#ffffff');
+    fg.addColorStop(1,'#b8cce0');
+  } else if(n.tp==='branch'){
+    fg=ctx.createRadialGradient(s.x-rr*0.25,s.y-rr*0.25,rr*0.05,s.x,s.y,rr);
+    fg.addColorStop(0,'#1a2540');
+    fg.addColorStop(1,'#0d1422');
+  } else {
+    fg=ctx.createRadialGradient(s.x-rr*0.3,s.y-rr*0.3,rr*0.05,s.x,s.y,rr);
+    fg.addColorStop(0,lighten(p.f,40));
+    fg.addColorStop(0.5,p.f);
+    fg.addColorStop(1,lighten(p.f,-20));
+  }
+  ctx.beginPath(); ctx.arc(s.x,s.y,rr,0,Math.PI*2);
+  ctx.fillStyle=fg; ctx.fill();
+
+  // Stroke
+  ctx.beginPath(); ctx.arc(s.x,s.y,rr,0,Math.PI*2);
+  if(n.tp==='branch'){
+    ctx.strokeStyle='rgba(255,255,255,0.07)';
+    ctx.lineWidth=1;
+  } else {
+    ctx.strokeStyle=isH?`rgba(255,255,255,0.7)`:`rgba(${p.g},0.45)`;
+    ctx.lineWidth=isH?2.5:1.5;
+  }
+  ctx.stroke();
+
+  // Shine
+  ctx.save();
+  ctx.clip();
+  const sh=ctx.createLinearGradient(s.x-rr,s.y-rr,s.x+rr*0.3,s.y+rr*0.3);
+  sh.addColorStop(0,'rgba(255,255,255,0.2)');
+  sh.addColorStop(0.5,'rgba(255,255,255,0.05)');
+  sh.addColorStop(1,'rgba(255,255,255,0)');
+  ctx.fillStyle=sh;
+  ctx.fillRect(s.x-rr,s.y-rr,rr*2,rr*2);
+  ctx.restore();
 
   ctx.restore();
 
-  // Text
-  const lines = n.label.split('\n');
-  const fSize = Math.max(9, n.fontSize * scale);
-  ctx.font = `${n.fontWeight} ${fSize}px "Cabinet Grotesk"`;
-  ctx.fillStyle = n.textColor;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-
-  const lineH = fSize * 1.3;
-  const totalH = lines.length * lineH;
-  lines.forEach((line, i) => {
-    ctx.fillText(line, s.x, s.y - totalH / 2 + i * lineH + lineH / 2);
+  // Label
+  const lines=n.lb.split('\n');
+  const fz=Math.max(9,n.fs*sc);
+  ctx.font=`${n.fw} ${fz}px "Clash Display"`;
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillStyle=n.tp==='branch'?'rgba(255,255,255,0.72)':p.t;
+  const lh=fz*1.35, tot=lines.length*lh;
+  lines.forEach((l,i)=>{
+    // Subtle text shadow for readability
+    ctx.shadowColor='rgba(0,0,0,0.4)';
+    ctx.shadowBlur=4;
+    ctx.fillText(l,s.x,s.y-tot/2+i*lh+lh/2);
+    ctx.shadowBlur=0;
   });
 }
 
-function draw(t) {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  // Background texture dots
-  ctx.fillStyle = 'rgba(0,0,0,0.04)';
-  for (let x = 0; x < canvas.width; x += 28) {
-    for (let y = 0; y < canvas.height; y += 28) {
-      ctx.beginPath();
-      ctx.arc(x, y, 1.5, 0, Math.PI * 2);
-      ctx.fill();
-    }
+function drawGrid(){
+  const step=50*sc;
+  const gox=((ox%step)+canvas.width/2)%step;
+  const goy=((oy%step)+canvas.height/2)%step;
+  ctx.strokeStyle='rgba(255,255,255,0.02)';
+  ctx.lineWidth=1;
+  for(let x=gox-step;x<canvas.width+step;x+=step){
+    ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke();
   }
-
-  // Edges
-  edges.forEach(e => drawEdge(e));
-
-  // Nodes
-  nodes.forEach(n => drawNode(n, t));
-
-  animFrame++;
-  requestAnimationFrame(draw);
+  for(let y=goy-step;y<canvas.height+step;y+=step){
+    ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke();
+  }
 }
 
-// ─── INTERACTION ─────────────────────────────────────────────────────────────
+function drawParticles(){
+  PARTS.forEach(p=>{
+    const s=ts(p.x,p.y);
+    if(s.x<-10||s.x>canvas.width+10||s.y<-10||s.y>canvas.height+10) return;
+    const a=(Math.sin(tick*p.spd+p.ph)+1)/2*0.2+0.03;
+    ctx.beginPath();
+    ctx.arc(s.x,s.y,p.r*sc,0,Math.PI*2);
+    ctx.fillStyle=`rgba(56,189,248,${a})`;
+    ctx.fill();
+  });
+}
 
-function getHitNode(sx, sy) {
-  const w = fromScreen(sx, sy);
-  for (let i = nodes.length - 1; i >= 0; i--) {
-    const n = nodes[i];
-    const dx = w.x - n.x, dy = w.y - n.y;
-    if (Math.sqrt(dx * dx + dy * dy) < n.r + 6) return n;
+function loop(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  // Deep bg
+  const bg=ctx.createRadialGradient(canvas.width/2,canvas.height/2,0,canvas.width/2,canvas.height/2,canvas.width*0.85);
+  bg.addColorStop(0,'#0d1526');
+  bg.addColorStop(1,'#080c14');
+  ctx.fillStyle=bg; ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  drawGrid();
+  drawParticles();
+  E.forEach(drawEdge);
+  N.forEach(drawNode);
+  tick++; requestAnimationFrame(loop);
+}
+
+function hitNode(sx,sy){
+  const w=fs2(sx,sy);
+  for(let i=N.length-1;i>=0;i--){
+    const n=N[i];
+    if((w.x-n.x)**2+(w.y-n.y)**2<(n.r+8)**2) return n;
   }
   return null;
 }
 
-const tooltip = document.getElementById('tooltip');
-
-canvas.addEventListener('mousemove', e => {
-  const hit = getHitNode(e.clientX, e.clientY);
-  hoveredNode = hit ? hit.id : null;
-  canvas.style.cursor = hit ? 'pointer' : (isDragging ? 'grabbing' : 'grab');
-
-  if (hit && hit.tooltip) {
-    const t = hit.tooltip;
-    document.getElementById('tip-title').textContent = t.title;
-    document.getElementById('tip-date').textContent = t.date || '';
-    const body = document.getElementById('tip-body');
-    body.innerHTML = '';
-    (t.body || '').split('\n').forEach(line => {
-      const d = document.createElement('div');
-      d.textContent = line;
-      d.style.color = '#ccc';
-      d.style.fontSize = '11px';
-      body.appendChild(d);
+const tip=document.getElementById('tooltip');
+canvas.addEventListener('mousemove',e=>{
+  const h=hitNode(e.clientX,e.clientY);
+  hov=h?h.id:null;
+  canvas.style.cursor=h?'pointer':drag?'grabbing':'grab';
+  if(h?.tip){
+    const t=h.tip, p=pal(h.tp);
+    document.getElementById('tt').textContent=t.t;
+    document.getElementById('td').textContent=t.d||'';
+    const tb=document.getElementById('tb'); tb.innerHTML='';
+    (t.b||[]).forEach(line=>{
+      const d=document.createElement('div'); d.className='tip-line';
+      d.innerHTML=`<span class="tip-dot" style="background:${p.f};box-shadow:0 0 5px ${p.f}"></span>${line}`;
+      tb.appendChild(d);
     });
-    tooltip.style.left = (e.clientX + 18) + 'px';
-    tooltip.style.top = (e.clientY - 10) + 'px';
-    tooltip.classList.add('show');
-  } else {
-    tooltip.classList.remove('show');
-  }
-
-  if (isDragging) {
-    offsetX += e.clientX - lastX;
-    offsetY += e.clientY - lastY;
-    lastX = e.clientX;
-    lastY = e.clientY;
-  }
+    tip.style.left=Math.min(e.clientX+20,innerWidth-295)+'px';
+    tip.style.top=Math.max(10,e.clientY-10)+'px';
+    tip.classList.add('show');
+  } else { tip.classList.remove('show'); }
+  if(drag){ ox+=e.clientX-lx; oy+=e.clientY-ly; lx=e.clientX; ly=e.clientY; }
 });
+canvas.addEventListener('mousedown',e=>{drag=true;lx=e.clientX;ly=e.clientY;document.body.classList.add('dragging');});
+canvas.addEventListener('mouseup',()=>{drag=false;document.body.classList.remove('dragging');});
+canvas.addEventListener('mouseleave',()=>{drag=false;});
 
-canvas.addEventListener('mousedown', e => {
-  isDragging = true;
-  lastX = e.clientX;
-  lastY = e.clientY;
-  document.body.classList.add('dragging');
-});
-
-canvas.addEventListener('mouseup', () => {
-  isDragging = false;
-  document.body.classList.remove('dragging');
-});
-
-canvas.addEventListener('wheel', e => {
+canvas.addEventListener('wheel',e=>{
   e.preventDefault();
-  const factor = e.deltaY < 0 ? 1.08 : 0.93;
-  const mx = e.clientX - canvas.width / 2;
-  const my = e.clientY - canvas.height / 2;
-  offsetX = (offsetX - mx) * factor + mx;
-  offsetY = (offsetY - my) * factor + my;
-  scale *= factor;
-  scale = Math.min(Math.max(scale, 0.2), 3);
-  updateZoomLabel();
-}, { passive: false });
+  const f=e.deltaY<0?1.1:0.91;
+  const mx=e.clientX-canvas.width/2, my=e.clientY-canvas.height/2;
+  ox=(ox-mx)*f+mx; oy=(oy-my)*f+my;
+  sc=Math.min(Math.max(sc*f,0.18),3.5);
+  upZ();
+},{passive:false});
 
-// Touch
-let lastTouchDist = null;
-canvas.addEventListener('touchstart', e => {
-  if (e.touches.length === 1) {
-    isDragging = true;
-    lastX = e.touches[0].clientX;
-    lastY = e.touches[0].clientY;
-  }
-});
-canvas.addEventListener('touchmove', e => {
+let td0=null;
+canvas.addEventListener('touchstart',e=>{if(e.touches.length===1){drag=true;lx=e.touches[0].clientX;ly=e.touches[0].clientY;}});
+canvas.addEventListener('touchmove',e=>{
   e.preventDefault();
-  if (e.touches.length === 1 && isDragging) {
-    offsetX += e.touches[0].clientX - lastX;
-    offsetY += e.touches[0].clientY - lastY;
-    lastX = e.touches[0].clientX;
-    lastY = e.touches[0].clientY;
-  } else if (e.touches.length === 2) {
-    const d = Math.hypot(
-      e.touches[0].clientX - e.touches[1].clientX,
-      e.touches[0].clientY - e.touches[1].clientY
-    );
-    if (lastTouchDist) {
-      scale *= d / lastTouchDist;
-      scale = Math.min(Math.max(scale, 0.2), 3);
-      updateZoomLabel();
-    }
-    lastTouchDist = d;
+  if(e.touches.length===1&&drag){ox+=e.touches[0].clientX-lx;oy+=e.touches[0].clientY-ly;lx=e.touches[0].clientX;ly=e.touches[0].clientY;}
+  else if(e.touches.length===2){
+    const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+    if(td0){sc=Math.min(Math.max(sc*d/td0,0.18),3.5);upZ();}
+    td0=d;
   }
-}, { passive: false });
-canvas.addEventListener('touchend', () => { isDragging = false; lastTouchDist = null; });
+},{passive:false});
+canvas.addEventListener('touchend',()=>{drag=false;td0=null;});
 
-// ─── CONTROLS ────────────────────────────────────────────────────────────────
+function zoom(f){ox*=f;oy*=f;sc=Math.min(Math.max(sc*f,0.18),3.5);upZ();}
+function resetView(){sc=0.82;ox=0;oy=0;upZ();}
+function upZ(){document.getElementById('zoom-level').textContent=Math.round(sc*100)+'%';}
 
-function zoom(f) {
-  offsetX *= f; offsetY *= f;
-  scale *= f;
-  scale = Math.min(Math.max(scale, 0.2), 3);
-  updateZoomLabel();
-}
-
-function resetView() {
-  scale = 0.82;
-  offsetX = 0;
-  offsetY = 0;
-  updateZoomLabel();
-}
-
-function updateZoomLabel() {
-  document.getElementById('zoom-level').textContent = Math.round(scale * 100) + '%';
-}
-
-window.addEventListener('resize', () => {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-});
-
-updateZoomLabel();
-requestAnimationFrame(draw);
+loop();
 </script>
 </body>
 </html>
